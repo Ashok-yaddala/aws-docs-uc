@@ -1,0 +1,20 @@
+VPC
+Subnets
+Internet Gateways & NAT Gateways - Internet Gateway helps our VPC instances connect with the internet.
+Security Groups
+Network ACL (NACL)
+VPC flow logs
+VPC Peering 
+VPC Endpoints
+Site to Site VPN & Direct connect
+Transit Gateway 
+
+AWS Private Link - You have a service that run within AWS or say there is a vendor on the market place and they run a service on their own account within their own VPC.So they want to expose a service  to customers of AWS.So to thounds of VPC they need to have prive access to that service to estalish a connectivity. We could use vpc peering but that is not scable and not secure.So alternatve is a private link.
+
+Route tables - To define access to the internet and access between those subnets so that the resources can communicate. We need to use Route tables.
+
+In the public subnets we used to put our EC2 instances and Load balancers. If we dnt have default VPC you could place your databases.For example they don't need internet access.Therefore they are going to be more secure
+
+AWS Cloud ---> Region ---> VPC( inside VPC we have CIDR Range: 10.0.0.0/16)
+
+https://www.ipaddressguide.com/cidr
