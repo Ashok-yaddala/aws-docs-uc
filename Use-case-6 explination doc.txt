@@ -1,0 +1,180 @@
+
+resource "aws_cloudwatch_event_rule" "this" {
+  name                = var.rule_name
+  schedule_expression = var.schedule_expression
+}
+
+
+AWS Lambda function to be automatically triggered by a CloudWatch Event Rule — typically used for cron jobs or periodic tasks.
+
+name: The name of your rule (coming from a variable)
+
+schedule_expression: The frequency of the trigger (e.g., rate(5 minutes) or cron(0 12 * * ? *)).
+
+resource "aws_cloudwatch_event_target" "this" {
+  rule = aws_cloudwatch_event_rule.this.name
+  arn  = var.lambda_function_arn
+}
+
+This connects your CloudWatch rule to the Lambda function — making the Lambda the target of the schedule.
+
+rule: Refers to the rule you just created.
+
+arn: The ARN (Amazon Resource Name) of your Lambda function (provided as a variable).
+
+Without this, CloudWatch has no idea what to trigger.
+
+resource "aws_lambda_permission" "allow_events" {
+  statement_id  = "AllowExecutionFromCloudWatch"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_arn
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.this.arn
+}
+
+AWS by default is secure — Lambda needs explicit permission to be invoked by CloudWatch Events.
+
+This block:
+
+Grants permission for events.amazonaws.com (CloudWatch) to invoke your Lambda.
+
+source_arn ensures the permission is scoped to only this CloudWatch rule.
+
+resource "aws_instance" "this" {
+  count         = var.instance_count
+  ami           = var.ami_id
+  instance_type = var.instance_type
+  tags = {
+    Name = "Scheduler"
+  }
+}
+
+resource "aws_instance" "this"
+This tells Terraform to launch EC2 instances using the AWS provider.
+
+count = var.instance_count
+This is a loop — Terraform will create as many instances as specified by the variable instance_count.
+
+If instance_count = 1, one EC2 instance will be created.
+
+If instance_count = 3, three EC2 instances will be created.
+
+This makes your code scalable — 1 to N instances with no extra code.
+
+ami = var.ami_id
+You must pass an AMI ID (like ami-0abcd1234efgh5678) from the root module.
+
+This defines what operating system and image the EC2 instance will use.
+
+instance_type = var.instance_type
+Also passed from outside.
+
+Common values: t2.micro, t3.medium, etc.
+
+Controls how much CPU, memory, and networking the instance gets.
+
+tags = { Name = "Scheduler" }
+Adds a tag to the instance for easier identification in the AWS Console
+
+data "archive_file" "lambda_zip" {
+  type        = "zip"
+  source_file = var.lambda_source
+  output_path = "${path.module}/${var.function_name}.zip"
+}
+
+Takes your local Lambda code file (e.g., start_lambda.py)
+
+Zips it up
+
+Stores the zip at ${module_path}/function_name.zip (e.g., ./start_lambda.zip)
+
+This is required because AWS Lambda needs code uploaded as a zip file.
+
+resource "aws_iam_role" "lambda_role" {
+  name = "${var.function_name}-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = { Service = "lambda.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+Creates an IAM role that your Lambda can "assume"
+
+This is required so that Lambda gets execution permissions
+
+Without this role, Lambda wouldn't be able to interact with AWS resources like EC2 or CloudWatch Logs.
+
+
+resource "aws_iam_policy" "ec2_policy" {
+  name = "${var.function_name}-ec2-policy"
+  policy = jsonencode({
+    ...
+    Action = var.action == "start" ? ["ec2:StartInstances", "ec2:DescribeInstances"] : ["ec2:StopInstances", "ec2:DescribeInstances"]
+    ...
+  })
+}
+
+Creates a policy that allows Lambda to either start or stop EC2 instances depending on the action variable.
+
+Also allows CloudWatch Logs access for logging
+
+This makes the module dynamic — the same module can do start or stop, based on input
+
+
+resource "aws_iam_role_policy_attachment" "attach" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.ec2_policy.arn
+}
+
+Attaches the EC2 IAM policy to the IAM role
+
+Now your Lambda can use the role with EC2 access
+
+resource "aws_lambda_function" "this" {
+  function_name    = var.function_name
+  filename         = data.archive_file.lambda_zip.output_path
+  source_code_hash = filebase64sha256(data.archive_file.lambda_zip.output_path)
+  handler          = var.handler
+  runtime          = var.runtime
+  role             = aws_iam_role.lambda_role.arn
+  timeout          = 315
+  environment {
+    variables = {
+      INSTANCE_ID = var.ec2_instance_id
+    }
+  }
+}
+
+Creates and deploys the actual AWS Lambda function:
+
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+These are required for:
+
+OIDC (secure AWS auth)
+
+Committing updates (like README)
+
+Commenting on PRs
+
+- name: Set up Terraform
+  uses: hashicorp/setup-terraform@v3
+
+Installs Terraform CLI — required for all following terraform commands.
+
+- name: Install Conftest (OPA)
+- name: Run OPA Policy Check with Conftest
+Runs Open Policy Agent (OPA) policies via Conftest against your Terraform plan:
+
+Converts binary plan to JSON
+
+Validates it with policies in policy/ directory
+
