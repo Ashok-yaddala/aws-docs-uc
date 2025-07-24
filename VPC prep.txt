@@ -18,3 +18,13 @@ In the public subnets we used to put our EC2 instances and Load balancers. If we
 AWS Cloud ---> Region ---> VPC( inside VPC we have CIDR Range: 10.0.0.0/16)
 
 https://www.ipaddressguide.com/cidr
+
+AWS security keys:
+
+
+Access Keys:
+==========
+
+Access key : AKIASQR6V5ERGWPT6SXV
+
+Secret access Key: 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
